@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Gen 4 BF Tool — smoke test</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<h1>Gen 4 BF Tool — Phase 1 smoke test</h1>
+<p>Verifies the vendored eisencalc lib + data files load standalone with our Gen 4 alias setup.</p>
+<pre id="log"></pre>
+
+<!-- jQuery (data files use $.extend) -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+<!-- Data files -->
+<script src="lib/game_data/stat_data.js"></script>
+<script src="lib/game_data/nature_data.js"></script>
+<script src="lib/game_data/type_data.js"></script>
+<script src="lib/game_data/ability_data.js"></script>
+<script src="lib/game_data/item_data.js"></script>
+<script src="lib/game_data/move_data.js"></script>
+<script src="lib/game_data/pokedex.js"></script>
+<script src="lib/game_data/setdex_gen4_sets.js"></script>
+
+<!-- Globals the calc reads from shared_calc.js. Set BEFORE loading the calc files. -->
+<script>
+  // Gen 4 alias setup (mirrors shared_calc.js gameId == 4 branch)
+  var STATS              = STATS_GSC;
+  var gameId             = 4;
+  var gen                = 4;
+  var pokedex            = POKEDEX_DPP;
+  var setdex             = SETDEX_PHGSS;
+  var typeChart          = TYPE_CHART_GSC;
+  var moves              = MOVES_DPP;
+  var items              = ITEMS_DPP;
+  var abilities          = ABILITIES_DPP;
+  var isNeutralizingGas  = false;
+  var mode               = "one-vs-one";
+</script>
+
+<!-- Calc files -->
+<script src="lib/damage_modern.js"></script>
+<script src="lib/damage_gen4.js"></script>
+
+<script>
+(function () {
+  var log = document.getElementById("log");
+  var fails = 0;
+
+  function check(name, cond, detail) {
+    var line = (cond ? "[ok] " : "[FAIL] ") + name + (detail ? " — " + detail : "");
+    var span = document.createElement("span");
+    span.className = cond ? "ok" : "bad";
+    span.textContent = line + "\n";
+    log.appendChild(span);
+    if (!cond) fails++;
+  }
+
+  function size(o) {
+    if (Array.isArray(o)) return o.length;
+    if (o && typeof o === "object") return Object.keys(o).length;
+    return 0;
+  }
+
+  check("jQuery loaded",          typeof $ === "function" && !!$.extend);
+  check("STATS_GSC defined",      Array.isArray(STATS_GSC),                "len=" + size(STATS_GSC));
+  check("POKEDEX_DPP non-empty",  size(POKEDEX_DPP) > 100,                  "size=" + size(POKEDEX_DPP));
+  check("MOVES_DPP non-empty",    size(MOVES_DPP) > 100,                    "size=" + size(MOVES_DPP));
+  check("ITEMS_DPP non-empty",    size(ITEMS_DPP) > 50,                     "size=" + size(ITEMS_DPP));
+  check("ABILITIES_DPP non-empty",size(ABILITIES_DPP) > 50,                 "size=" + size(ABILITIES_DPP));
+  check("TYPE_CHART_GSC ok",      size(TYPE_CHART_GSC) >= 17,               "types=" + size(TYPE_CHART_GSC));
+  check("NATURES present",        size(NATURES) === 25,                     "size=" + size(NATURES));
+  check("SETDEX_PHGSS species",   size(SETDEX_PHGSS) > 100,                 "species=" + size(SETDEX_PHGSS));
+
+  check("alias: pokedex",   pokedex === POKEDEX_DPP);
+  check("alias: setdex",    setdex === SETDEX_PHGSS);
+  check("alias: moves",     moves === MOVES_DPP);
+  check("alias: typeChart", typeChart === TYPE_CHART_GSC);
+
+  check("CALCULATE_ALL_MOVES_PTHGSS",       typeof CALCULATE_ALL_MOVES_PTHGSS === "function");
+  check("CALCULATE_MOVES_OF_ATTACKER_PTHGSS", typeof CALCULATE_MOVES_OF_ATTACKER_PTHGSS === "function");
+  check("getDamageResultPtHGSS",            typeof getDamageResultPtHGSS === "function");
+  check("getFinalSpeed",                    typeof getFinalSpeed === "function");
+  check("checkAirLock",                     typeof checkAirLock === "function");
+  check("checkForecast",                    typeof checkForecast === "function");
+  check("checkKlutz",                       typeof checkKlutz === "function");
+  check("checkIntimidate",                  typeof checkIntimidate === "function");
+  check("checkDownload",                    typeof checkDownload === "function");
+
+  // Spot-check a couple of canonical sets
+  var sample = setdex["Latios"];
+  check("Latios in setdex", !!sample, sample ? Object.keys(sample).join(", ") : "");
+  var aero = setdex["Aerodactyl"];
+  check("Aerodactyl in setdex", !!aero, aero ? Object.keys(aero).join(", ") : "");
+
+  // Move lookup for one BF-typical move
+  check("moves['Earthquake'] present", !!moves["Earthquake"], moves["Earthquake"] ? "bp=" + moves["Earthquake"].bp : "");
+
+  var tail = document.createElement("span");
+  tail.className = fails ? "bad" : "ok";
+  tail.textContent = "\n" + (fails ? fails + " FAILURES" : "ALL CHECKS PASSED") + "\n";
+  log.appendChild(tail);
+})();
+</script>
+
+</body>
+</html>

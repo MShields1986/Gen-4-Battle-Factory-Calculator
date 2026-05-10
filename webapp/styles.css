@@ -1,0 +1,96 @@
+/* Shared dark-mode palette for the Gen 4 BF tool */
+
+:root {
+  --bg:        #0f172a;   /* page background — deep slate */
+  --surface:   #1e293b;   /* panels / cards */
+  --surface-2: #273548;   /* nested / striped rows */
+  --border:    #334155;   /* subtle separators */
+  --text:      #e2e8f0;   /* primary text */
+  --text-dim:  #94a3b8;   /* secondary text */
+  --accent:    #38bdf8;   /* highlights, links, focused inputs */
+  --ok:        #22c55e;
+  --bad:       #f87171;
+  --warn:      #f59e0b;
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+body {
+  max-width: 1200px;
+  margin: 2em auto;
+  padding: 0 1em;
+  line-height: 1.5;
+}
+
+h1, h2, h3, h4 { color: var(--text); }
+h2 { margin-top: 1.5em; border-bottom: 1px solid var(--border); padding-bottom: 0.25em; }
+
+a              { color: var(--accent); }
+a:hover        { color: #7dd3fc; }
+
+pre {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 1em;
+  white-space: pre-wrap;
+  font-size: 13px;
+  border-radius: 6px;
+}
+
+code { color: var(--accent); }
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+td, th {
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  font-size: 13px;
+  text-align: left;
+}
+th  { background: var(--surface-2); color: var(--text-dim); font-weight: 600; }
+tr:nth-child(even) td { background: var(--surface-2); }
+
+input, select, button {
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 13px;
+  font-family: inherit;
+}
+input:focus, select:focus, button:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+button {
+  cursor: pointer;
+  background: var(--accent);
+  color: var(--bg);
+  font-weight: 600;
+}
+button:hover { filter: brightness(1.1); }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1em;
+  margin: 0.75em 0;
+}
+
+.dim  { color: var(--text-dim); }
+.ok   { color: var(--ok); }
+.bad  { color: var(--bad); font-weight: bold; }
+.warn { color: var(--warn); }

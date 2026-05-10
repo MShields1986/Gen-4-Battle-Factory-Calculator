@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Gen 4 BF Tool — calc test</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<h1>Gen 4 BF Tool — Phase 2 calc test</h1>
+<p>Builds Pokemon POJOs via <code>factory.js</code>, runs the real eisencalc
+Gen 4 damage calc, and renders the results. Compare against
+<a href="https://to-metrion.github.io/honkalculate.html" target="_blank">eisencalc</a> on the same matchups.</p>
+
+<!-- jQuery -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+<!-- Data -->
+<script src="lib/game_data/stat_data.js"></script>
+<script src="lib/game_data/nature_data.js"></script>
+<script src="lib/game_data/type_data.js"></script>
+<script src="lib/game_data/ability_data.js"></script>
+<script src="lib/game_data/item_data.js"></script>
+<script src="lib/game_data/move_data.js"></script>
+<script src="lib/game_data/pokedex.js"></script>
+<script src="lib/game_data/setdex_gen4_sets.js"></script>
+
+<!-- Gen 4 alias setup -->
+<script>
+  var STATS              = STATS_GSC;
+  var gameId             = 4;
+  var gen                = 4;
+  var pokedex            = POKEDEX_DPP;
+  var setdex             = SETDEX_PHGSS;
+  var typeChart          = TYPE_CHART_GSC;
+  var moves              = MOVES_DPP;
+  var items              = ITEMS_DPP;
+  var abilities          = ABILITIES_DPP;
+  var isNeutralizingGas  = false;
+  var mode               = "one-vs-one";
+</script>
+
+<!-- Calc -->
+<script src="lib/damage_modern.js"></script>
+<script src="lib/damage_gen4.js"></script>
+
+<!-- Our factories -->
+<script src="factory.js"></script>
+
+<div id="out"></div>
+
+<script>
+(function () {
+  var out = document.getElementById("out");
+
+  function el(tag, props, children) {
+    var n = document.createElement(tag);
+    Object.assign(n, props || {});
+    (children || []).forEach(function (c) {
+      n.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
+    });
+    return n;
+  }
+
+  function pokeHeader(p) {
+    return p.name + " " + p.setName + " | " + p.ability + " | " + p.item +
+      " | " + p.nature + " | EVs " + JSON.stringify(p.evs) +
+      " | stats " + JSON.stringify(p.stats);
+  }
+
+  function summariseDamage(damage, defenderMaxHP) {
+    if (!damage) return "—";
+    if (typeof damage === "number") damage = [damage];
+    if (!Array.isArray(damage) || damage.length === 0) return "—";
+    var min = damage[0];
+    var max = damage[damage.length - 1];
+    var minPct = (100 * min / defenderMaxHP).toFixed(1);
+    var maxPct = (100 * max / defenderMaxHP).toFixed(1);
+    return min + "-" + max + " (" + minPct + " - " + maxPct + "%)";
+  }
+
+  function runMatchup(title, attackerOpts, defenderOpts) {
+    var section = el("section");
+    section.appendChild(el("h2", { textContent: title }));
+
+    try {
+      var att = Factory.makePokemon(attackerOpts);
+      var def = Factory.makePokemon(defenderOpts);
+      var field = Factory.makeField();
+
+      section.appendChild(el("pre", { textContent:
+        "Attacker: " + pokeHeader(att) + "\n" +
+        "Defender: " + pokeHeader(def) + "\n" +
+        "Defender maxHP: " + def.maxHP
+      }));
+
+      var results = CALCULATE_MOVES_OF_ATTACKER_PTHGSS(att, def, field);
+
+      var tbl = el("table");
+      var head = el("tr");
+      ["Move", "Type", "BP", "Damage range (raw + % of defender HP)"].forEach(function (h) {
+        head.appendChild(el("th", { textContent: h }));
+      });
+      tbl.appendChild(head);
+
+      for (var i = 0; i < 4; i++) {
+        var move = att.moves[i];
+        var r = results[i];
+        // r is typically {damage, description, ...}; .damage is an array of rolls
+        var dmg = r && (r.damage !== undefined ? r.damage : r);
+        var row = el("tr");
+        row.appendChild(el("td", { textContent: move.name || "—" }));
+        row.appendChild(el("td", { textContent: move.type || "—" }));
+        row.appendChild(el("td", { textContent: move.bp != null ? String(move.bp) : "—" }));
+        row.appendChild(el("td", { textContent: summariseDamage(dmg, def.maxHP) }));
+        tbl.appendChild(row);
+      }
+      section.appendChild(tbl);
+    } catch (err) {
+      var pre = el("pre", { textContent: "ERROR: " + err.message + "\n" + (err.stack || "") });
+      pre.className = "bad";
+      section.appendChild(pre);
+    }
+    out.appendChild(section);
+  }
+
+  // Matchup A: 31-IV Latios-1 (specs, Modest? actually Calm) into Aerodactyl-1.
+  runMatchup(
+    "Latios-1 vs Aerodactyl-1 (both 31 IV)",
+    { species: "Latios", setName: "Latios-1 (905)", ivs: 31 },
+    { species: "Aerodactyl", setName: "Aerodactyl-1 (443)", ivs: 31 }
+  );
+
+  // Matchup B: Heatran-1 into Bronzong-1 (Steel / Steel-Psychic). Tests Earth Power vs Levitate etc.
+  runMatchup(
+    "Heatran-1 vs Bronzong-1 (both 31 IV)",
+    { species: "Heatran", setName: "Heatran-1 (906)", ivs: 31 },
+    { species: "Bronzong", setName: "Bronzong-1 (431)", ivs: 31 }
+  );
+
+  // Matchup C: Garchomp-3 into Salamence-3 (test outrage / draco / etc against dragon).
+  runMatchup(
+    "Garchomp-3 vs Salamence-3 (both 31 IV)",
+    { species: "Garchomp", setName: "Garchomp-3 (757)", ivs: 31 },
+    { species: "Salamence", setName: "Salamence-3 (755)", ivs: 31 }
+  );
+
+  // Matchup D: Garchomp-4 (EQ) into Raikou-4 (Shuca Berry) at 12 IV — EQ should be ~halved.
+  runMatchup(
+    "Garchomp-4 vs Raikou-4 (12 IV) — Shuca Berry should halve EQ",
+    { species: "Garchomp", setName: "Garchomp-4 (893)", ivs: 12 },
+    { species: "Raikou",   setName: "Raikou-4 (940)",   ivs: 12 }
+  );
+
+  // ---- Screen test ----
+  // Uses Garchomp-3 (Physical attacker) vs Salamence-3 to verify Reflect halves Physical damage
+  // and Latios-1 (Special attacker) vs Aerodactyl-1 to verify Light Screen halves Special damage.
+  function runScreenTest(title, attackerOpts, defenderOpts, defenderSide) {
+    var section = el("section");
+    section.appendChild(el("h2", { textContent: title }));
+
+    try {
+      var att  = Factory.makePokemon(attackerOpts);
+      var def  = Factory.makePokemon(defenderOpts);
+
+      var fOff = Factory.makeField({ defenderSide: {} });
+      var fOn  = Factory.makeField({ defenderSide: defenderSide });
+
+      var rOff = CALCULATE_MOVES_OF_ATTACKER_PTHGSS(att, def, fOff);
+      att = Factory.makePokemon(attackerOpts);
+      def = Factory.makePokemon(defenderOpts);
+      var rOn  = CALCULATE_MOVES_OF_ATTACKER_PTHGSS(att, def, fOn);
+
+      var tbl  = el("table");
+      var head = el("tr");
+      ["Move", "Cat", "No screen", "Screen on", "Halved?"].forEach(function (h) {
+        head.appendChild(el("th", { textContent: h }));
+      });
+      tbl.appendChild(head);
+
+      for (var i = 0; i < 4; i++) {
+        var move   = att.moves[i];
+        var dmgOff = rOff[i] && (rOff[i].damage !== undefined ? rOff[i].damage : rOff[i]);
+        var dmgOn  = rOn[i]  && (rOn[i].damage  !== undefined ? rOn[i].damage  : rOn[i]);
+        var minOff = Array.isArray(dmgOff) ? dmgOff[0] : dmgOff;
+        var minOn  = Array.isArray(dmgOn)  ? dmgOn[0]  : dmgOn;
+        var row = el("tr");
+        row.appendChild(el("td", { textContent: move.name || "—" }));
+        row.appendChild(el("td", { textContent: move.category || "—" }));
+        row.appendChild(el("td", { textContent: summariseDamage(dmgOff, def.maxHP) }));
+        row.appendChild(el("td", { textContent: summariseDamage(dmgOn,  def.maxHP) }));
+        var changed = (minOff !== minOn) ? "YES" : (move.category === "Status" || move.bp === 0) ? "n/a" : "NO ← BUG?";
+        var td = el("td", { textContent: changed });
+        if (changed === "NO ← BUG?") td.style.color = "red";
+        row.appendChild(td);
+        tbl.appendChild(row);
+      }
+      section.appendChild(tbl);
+    } catch (err) {
+      var pre = el("pre", { textContent: "ERROR: " + err.message + "\n" + (err.stack || "") });
+      pre.className = "bad";
+      section.appendChild(pre);
+    }
+    out.appendChild(section);
+  }
+
+  runScreenTest(
+    "Reflect test — Garchomp-3 (Physical) into Salamence-3",
+    { species: "Garchomp",  setName: "Garchomp-3 (757)",  ivs: 31 },
+    { species: "Salamence", setName: "Salamence-3 (755)", ivs: 31 },
+    { isReflect: true }
+  );
+
+  runScreenTest(
+    "Light Screen test — Latios-1 (Special) into Aerodactyl-1",
+    { species: "Latios",     setName: "Latios-1 (905)",     ivs: 31 },
+    { species: "Aerodactyl", setName: "Aerodactyl-1 (443)", ivs: 31 },
+    { isLightScreen: true }
+  );
+})();
+</script>
+</body>
+</html>

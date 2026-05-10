@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Gen 4 Battle Factory Calculator</title>
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    /* layout-only overrides; palette comes from styles.css */
+    body { max-width: 1400px; }
+    /* 4 cards side-by-side: 3 of your mons (75%) + opponent (25%). */
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 1fr;
+      gap: 0.75em;
+      align-items: start;
+    }
+    .layout .opp-card { grid-column: 4; }
+    @media (max-width: 1100px) {
+      .layout { grid-template-columns: 1fr 1fr; }
+      .layout .opp-card { grid-column: auto; }
+    }
+    @media (max-width: 700px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+    .mon-card {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 0.4em 0.6em;
+      align-items: center;
+    }
+    .mon-card .label { color: var(--text-dim); font-size: 12px; }
+    .mon-card .head  { display: flex; gap: 0.5em; align-items: center; }
+    .mon-card .head .title { font-weight: 600; }
+    .mon-card select, .mon-card input { width: 100%; }
+    .results-empty { color: var(--text-dim); padding: 2em 0; text-align: center; }
+    .opp-block { margin-top: 1.25em; }
+    .opp-block h3 { margin: 0 0 0.4em 0; font-size: 14px; }
+    .opp-block .meta { color: var(--text-dim); font-size: 12px; margin-bottom: 0.6em; }
+    .opp-block table { margin-bottom: 0.5em; font-size: 12px; }
+    .opp-block table caption {
+      caption-side: top;
+      text-align: left;
+      color: var(--text-dim);
+      font-size: 11px;
+      padding: 0 0 0.2em 0.2em;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    /* Damage cell color coding */
+    .dmg-ohko  { color: var(--bad); font-weight: 600; }
+    .dmg-2hko  { color: var(--warn); }
+    .dmg-some  { color: var(--text); }
+    .dmg-none  { color: var(--text-dim); }
+    .dmg-zero  { color: var(--text-dim); }
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    /* Opp set filter */
+    #opp-set-list { margin-top: 0.75em; }
+    .opp-set-heading { color: var(--text-dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.3em; }
+    .opp-set-label { display: block; font-size: 12px; cursor: pointer; padding: 1px 0; }
+    .opp-set-label input[type=checkbox] { margin-right: 0.4em; accent-color: var(--accent); }
+    /* Stat stage row */
+    .stage-row { display: flex; gap: 0.4em; flex-wrap: wrap; }
+    .stage-cell { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+    .stage-lbl { font-size: 10px; color: var(--text-dim); }
+    .stage-inp { width: 2.8em !important; text-align: center; padding: 2px 2px; }
+    .iv-inp    { width: 4em   !important; }
+    /* Speed indicators */
+    .spd-fast { color: var(--ok); font-weight: 600; }
+    .spd-slow { color: var(--bad); font-weight: 600; }
+    .spd-tie  { color: var(--warn); font-weight: 600; }
+    .spd      { font-size: 11px; color: var(--text-dim); margin-left: 0.4em; }
+    /* Type matchup badges */
+    .type-matchup { display: contents; }
+    .type-matchup-row { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; }
+    .type-tag { padding: 1px 5px; border-radius: 3px; font-size: 10px; font-weight: 600; white-space: nowrap; }
+    .type-tag-quad    { background: rgba(248,113,113,0.25); color: var(--bad); }
+    .type-tag-double  { background: rgba(245,158,11,0.2);  color: var(--warn); }
+    .type-tag-half    { background: rgba(34,197,94,0.12);   color: var(--ok); }
+    .type-tag-quarter { background: rgba(34,197,94,0.22);   color: #86efac; }
+    .type-tag-immune  { background: rgba(148,163,184,0.15); color: var(--text-dim); }
+    /* Berry-used rows */
+    .berry-used-row { grid-column: 1 / -1; font-size: 12px; }
+    .berry-used-row label, .opp-berry-row label { cursor: pointer; }
+    .berry-used-row input[type=checkbox], .opp-berry-row input[type=checkbox] { width: auto !important; margin-right: 0.3em; accent-color: var(--accent); }
+    .opp-berry-row { font-size: 12px; color: var(--text-dim); margin-bottom: 0.5em; }
+    /* Mon meta line (nature · item · ability) */
+    .mon-meta { grid-column: 1 / -1; font-size: 11px; color: var(--text-dim); margin-bottom: 0.1em; }
+    /* Field bar */
+    .field-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1em 1.5em;
+      align-items: center;
+      padding: 0.6em 1em;
+    }
+    .field-bar label.grp { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
+    .field-bar .field-grp { display: flex; gap: 0.5em; align-items: center; }
+    .field-bar .field-grp input[type=checkbox] { margin: 0; accent-color: var(--accent); }
+    .field-bar .pill { font-size: 12px; color: var(--text-dim); }
+    /* Team coverage card */
+    .team-coverage-body { display: flex; flex-wrap: wrap; gap: 1.5em; margin-top: 0.5em; align-items: flex-start; }
+    .team-coverage-col .label { display: block; margin-bottom: 0.3em; }
+    .type-tag-shared3  { background: rgba(248,113,113,0.28); color: var(--bad); font-weight: 600; }
+    .type-tag-shared2  { background: rgba(245,158,11,0.22);  color: var(--warn); }
+    .type-tag-exposed  { background: rgba(147,112,219,0.2);  color: #c4b5fd; }
+    .type-tag-ok       { background: rgba(34,197,94,0.12);   color: var(--ok); }
+  </style>
+</head>
+<body>
+  <h1>Gen 4 Battle Factory Calculator</h1>
+  <p class="dim">
+    Pick your team and what you see from the opponent, you can hide sets as you gain information.
+  </p>
+
+  <!-- Field state bar -->
+  <div class="card field-bar">
+    <div class="field-grp">
+      <label class="grp" for="round-select">Round</label>
+      <select id="round-select">
+        <option value="1">1 (battles 1-7)</option>
+        <option value="2">2 (8-14)</option>
+        <option value="3">3 (15-21)</option>
+        <option value="4">4 (22-28)</option>
+        <option value="5">5 (29-35)</option>
+        <option value="6">6 (36-42)</option>
+        <option value="7">7 (43-49)</option>
+        <option value="8" selected>8+ (50+)</option>
+      </select>
+      <span class="pill" id="round-iv-hint"></span>
+    </div>
+    <div class="field-grp">
+      <label class="grp" for="weather-select">Weather</label>
+      <select id="weather-select">
+        <option value="">None</option>
+        <option value="Sun">Sun</option>
+        <option value="Rain">Rain</option>
+        <option value="Sand">Sand</option>
+        <option value="Hail">Hail</option>
+      </select>
+    </div>
+    <div class="field-grp">
+      <label class="grp">Your side</label>
+      <label><input type="checkbox" id="your-reflect"> Reflect</label>
+      <label><input type="checkbox" id="your-lscreen"> Light Screen</label>
+    </div>
+    <div class="field-grp">
+      <label class="grp">Opp side</label>
+      <label><input type="checkbox" id="opp-reflect"> Reflect</label>
+      <label><input type="checkbox" id="opp-lscreen"> Light Screen</label>
+    </div>
+  </div>
+
+  <div class="layout" id="layout-row">
+    <!-- 3 attacker cards inserted here by app.js -->
+    <!-- Opponent (4th column) -->
+    <div class="card opp-card">
+      <div class="head" style="margin-bottom:0.4em"><span class="title">Opponent</span></div>
+      <div class="mon-card">
+        <span class="label">Species</span>
+        <select id="opp-species"></select>
+        <span class="label">IVs</span>
+        <input id="opp-ivs" type="number" min="0" max="31" value="31" class="iv-inp" />
+        <span class="label">Status</span>
+        <select id="opp-status">
+          <option value="Healthy">Healthy</option>
+          <option value="Burned">Burned</option>
+          <option value="Paralyzed">Paralyzed</option>
+          <option value="Poisoned">Poisoned</option>
+          <option value="Badly Poisoned">Badly Poisoned</option>
+        </select>
+        <span class="label">Stages</span>
+        <div class="stage-row" id="opp-stage-row"></div>
+      </div>
+      <div id="opp-set-list"></div>
+    </div>
+  </div>
+
+  <div id="team-coverage" class="card" style="display:none; margin-top:0.75em;"></div>
+
+  <h2>Matchups</h2>
+  <div id="results"><p class="results-empty">Choose your team and an opponent species to see damage.</p></div>
+
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+  <!-- Data -->
+  <script src="lib/game_data/stat_data.js"></script>
+  <script src="lib/game_data/nature_data.js"></script>
+  <script src="lib/game_data/type_data.js"></script>
+  <script src="lib/game_data/ability_data.js"></script>
+  <script src="lib/game_data/item_data.js"></script>
+  <script src="lib/game_data/move_data.js"></script>
+  <script src="lib/game_data/pokedex.js"></script>
+  <script src="lib/game_data/setdex_gen4_sets.js"></script>
+
+  <!-- Gen 4 alias setup -->
+  <script>
+    var STATS              = STATS_GSC;
+    var gameId             = 4;
+    var gen                = 4;
+    var pokedex            = POKEDEX_DPP;
+    var setdex             = SETDEX_PHGSS;
+    var typeChart          = TYPE_CHART_GSC;
+    var moves              = MOVES_DPP;
+    var items              = ITEMS_DPP;
+    var abilities          = ABILITIES_DPP;
+    var isNeutralizingGas  = false;
+    var mode               = "one-vs-one";
+  </script>
+
+  <!-- Calc -->
+  <script src="lib/damage_modern.js"></script>
+  <script src="lib/damage_gen4.js"></script>
+
+  <!-- Our factories + UI -->
+  <script src="factory.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

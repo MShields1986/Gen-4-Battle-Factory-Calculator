@@ -1,0 +1,7 @@
+services:
+  webapp:
+    build: .
+    ports:
+      - "8080:80"
+    volumes:
+      - ./webapp:/usr/share/nginx/html:ro
